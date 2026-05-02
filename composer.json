@@ -1,0 +1,39 @@
+{
+    "name": "ericgansa/ghost-trees-bundle",
+    "description": "Pattern d'héritage dynamique pour entités Doctrine — les arbres fantômes.",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "keywords": ["symfony", "bundle", "doctrine", "inheritance", "override", "ghost", "phantom"],
+    "authors": [
+        {
+            "name": "EricGansa"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "symfony/framework-bundle": "^6.4 || ^7.0",
+        "symfony/validator": "^6.4 || ^7.0",
+        "symfony/console": "^6.4 || ^7.0",
+        "doctrine/orm": "^2.17 || ^3.0",
+        "doctrine/doctrine-bundle": "^2.10"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0",
+        "symfony/phpunit-bridge": "^7.0",
+        "symfony/yaml": "^6.4 || ^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "EricGansa\\GhostTreesBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "EricGansa\\GhostTreesBundle\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable"
+}

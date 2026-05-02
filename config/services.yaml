@@ -1,0 +1,36 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    # Resolver central : c'est le service qui implémente la logique
+    # de traversée fantôme (résolution attribut par attribut).
+    EricGansa\GhostTreesBundle\Resolver\GhostResolver:
+        arguments:
+            $maxDepth: '%ghost_trees.max_depth%'
+
+    EricGansa\GhostTreesBundle\Contract\GhostResolverInterface:
+        alias: EricGansa\GhostTreesBundle\Resolver\GhostResolver
+
+    # Subscriber Doctrine : propagation structurelle des collections.
+    # Désactivé si auto_propagate_collections = false.
+    EricGansa\GhostTreesBundle\EventSubscriber\GhostPropagationSubscriber:
+        arguments:
+            $enabled: '%ghost_trees.auto_propagate_collections%'
+        tags:
+            - { name: doctrine.event_subscriber }
+
+    # Validateur de la contrainte #[GhostableField]
+    EricGansa\GhostTreesBundle\Validator\GhostableFieldValidator:
+        tags:
+            - { name: validator.constraint_validator }
+
+    # Commandes CLI
+    EricGansa\GhostTreesBundle\Command\DebugGhostsCommand:
+        tags:
+            - { name: console.command }
+
+    EricGansa\GhostTreesBundle\Command\IncarnateGhostCommand:
+        tags:
+            - { name: console.command }
