@@ -8,16 +8,20 @@ use Attribute;
 use Symfony\Component\Validator\Constraint;
 
 /**
- * Marque un champ comme fantomisable (héritable depuis un parent fantôme).
+ * Contrainte de validation pour un champ fantomisable.
  *
- * Combine deux rôles :
- *  - métadonnée : le champ est exposé au resolver pour le debug et la sérialisation ;
- *  - validation : si "required" est vrai, le champ est obligatoire UNIQUEMENT
- *    sur les racines (les fantômes peuvent le laisser à null pour hériter).
+ * Rôle PUREMENT VALIDATIONNEL : si "required" est vrai, le champ est
+ * obligatoire UNIQUEMENT sur les racines. Sur les fantômes, la contrainte
+ * est silencieuse (la valeur sera héritée du parent).
+ *
+ * Cette contrainte est INDÉPENDANTE de l'attribut #[Ghostable] : on peut
+ * vouloir une validation conditionnelle sans avoir besoin de la résolution
+ * dynamique (cas rare mais légitime).
  *
  * Exemple :
  *
  *     #[ORM\Column(length: 255, nullable: true)]
+ *     #[Ghostable]
  *     #[GhostableField(required: true)]
  *     private ?string $lieuDepart = null;
  */

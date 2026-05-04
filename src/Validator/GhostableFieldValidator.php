@@ -14,8 +14,15 @@ use Symfony\Component\Validator\Exception\UnexpectedTypeException;
  * Valide la contrainte #[GhostableField].
  *
  * Sémantique :
- *  - sur une racine (parent = null) et required = true : la valeur ne peut pas être null ;
- *  - sur un fantôme : la contrainte est silencieuse (la valeur sera héritée du parent).
+ *  - sur une racine (parent = null) avec required=true : valeur non null obligatoire ;
+ *  - sur un fantôme : la contrainte est silencieuse (la valeur sera résolue depuis le parent).
+ *
+ * Le validator NE consulte PAS l'attribut #[Ghostable]. C'est volontaire :
+ *  - l'attribut #[Ghostable] est purement introspectif (utilisé par le resolver/inspector) ;
+ *  - la contrainte #[GhostableField] est pure validation.
+ *
+ * Les deux peuvent coexister sur une même propriété, ou être utilisés
+ * séparément selon le besoin.
  */
 final class GhostableFieldValidator extends ConstraintValidator
 {
@@ -30,23 +37,14 @@ final class GhostableFieldValidator extends ConstraintValidator
         }
 
         $object = $this->context->getObject();
+        $isGhost = $object instanceof GhostableInterface && $object->isGhost();
 
-        // Si l'objet n'est pas fantomisable, on applique la contrainte standard
-        // (la valeur ne peut pas être null).
-        if (!$object instanceof GhostableInterface) {
-            if (null === $value || '' === $value) {
-                $this->context->buildViolation($constraint->getDefaultMessage())->addViolation();
-            }
+        // Sur un fantôme, la contrainte est inopérante.
+        if ($isGhost) {
             return;
         }
 
-        // Si l'entité est un fantôme, la valeur peut être null
-        // (elle sera résolue depuis le parent).
-        if ($object->isGhost()) {
-            return;
-        }
-
-        // Sur une racine, la valeur est obligatoire.
+        // Sur une racine (ou objet non fantomisable), la valeur est obligatoire.
         if (null === $value || '' === $value) {
             $this->context->buildViolation($constraint->getDefaultMessage())->addViolation();
         }

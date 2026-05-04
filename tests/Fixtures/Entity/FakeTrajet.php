@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace EricGansa\GhostTreesBundle\Tests\Fixtures\Entity;
 
+use EricGansa\GhostTreesBundle\Attribute\Ghostable;
 use EricGansa\GhostTreesBundle\Attribute\GhostableField;
 use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
 use EricGansa\GhostTreesBundle\Trait\GhostNodeTrait;
@@ -11,9 +12,9 @@ use EricGansa\GhostTreesBundle\Trait\GhostNodeTrait;
 /**
  * Entité minimaliste utilisée par les tests.
  *
- * Démontre l'usage du trait sans Doctrine : aucun accès au parent
- * n'est redéclaré, le trait fournit tout. La classe ne définit
- * que les attributs métier et leurs accesseurs.
+ * Démontre l'usage SANS Doctrine : aucun accès au parent n'est redéclaré,
+ * le trait fournit tout. La classe ne définit que les attributs métier
+ * et leurs accesseurs.
  */
 final class FakeTrajet implements GhostableInterface
 {
@@ -21,13 +22,15 @@ final class FakeTrajet implements GhostableInterface
 
     private ?int $id = null;
 
+    #[Ghostable]
     #[GhostableField(required: true)]
     private ?string $lieuDepart = null;
 
+    #[Ghostable]
     #[GhostableField(required: true)]
     private ?string $lieuArrivee = null;
 
-    #[GhostableField]
+    #[Ghostable]
     private ?string $moyenTransport = null;
 
     public function getId(): ?int

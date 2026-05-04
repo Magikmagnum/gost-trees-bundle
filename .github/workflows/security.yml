@@ -1,0 +1,104 @@
+name: Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Tous les lundis à 6h UTC (8h Paris en hiver, 7h en été).
+    # Permet de détecter une CVE découverte après le merge sans qu'on
+    # ait poussé de code entre-temps.
+    - cron: '0 6 * * 1'
+
+# Permissions minimales : ce workflow ne fait que lire le code et publier
+# des résultats de scan dans l'onglet Security de GitHub.
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  composer-audit:
+    name: Composer audit (CVE database)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      # composer audit consulte la base CVE officielle (FriendsOfPHP/security-advisories)
+      # et échoue si une dépendance directe ou transitive a une vulnérabilité connue.
+      - name: Run composer audit
+        run: composer audit --no-dev --abandoned=report
+
+      # On audit aussi les require-dev pour signaler les vulnérabilités
+      # dans l'outillage (PHPUnit, etc.) — non bloquant car le code de prod
+      # n'est pas concerné, mais bon à savoir.
+      - name: Run composer audit (with dev dependencies)
+        run: composer audit --abandoned=report
+        continue-on-error: true
+
+  psalm-security:
+    name: Psalm Security Analysis (taint analysis)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Psalm Security Scan
+        uses: psalm/psalm-github-security-scan@v1
+        with:
+          security_analysis: true
+          report_file: psalm-results.sarif
+
+      - name: Upload Psalm SARIF report
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: psalm-results.sarif
+
+  codeql:
+    name: CodeQL Static Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: 'javascript-typescript'
+          # Note : CodeQL ne supporte pas encore PHP nativement (statut 2026 :
+          # PHP est en preview). On scanne tout JS/TS éventuel (fixtures, doc).
+          # Pour PHP, on s'appuie sur Psalm + composer audit.
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  dependency-review:
+    name: Dependency Review (PR only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Bloque toute PR qui introduit une dépendance avec une CVE connue
+      # ou une licence non compatible.
+      - name: Review dependencies
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: on-failure

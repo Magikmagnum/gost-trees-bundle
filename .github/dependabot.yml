@@ -1,0 +1,51 @@
+version: 2
+
+updates:
+  # Mises à jour des dépendances PHP via Composer.
+  - package-ecosystem: "composer"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "php"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      # Regroupe les MAJ patch/minor de Symfony pour éviter le bruit.
+      symfony:
+        patterns:
+          - "symfony/*"
+        update-types:
+          - "minor"
+          - "patch"
+      doctrine:
+        patterns:
+          - "doctrine/*"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Mises à jour des actions GitHub utilisées dans les workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Paris"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"

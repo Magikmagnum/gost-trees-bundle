@@ -14,45 +14,18 @@ use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
  *  - la méthode resolve() utilisée par les getters métier ;
  *  - l'implémentation de isGhost().
  *
- * ──────────────────────────────────────────────────────────────────
- *  IMPORTANT — Mapping Doctrine
- * ──────────────────────────────────────────────────────────────────
+ * IMPORTANT — résolution : la logique est intentionnellement DUPLIQUÉE
+ * avec celle de GhostResolver::resolve(). Pourquoi ? Parce que les entités
+ * Doctrine ne peuvent pas dépendre du container (pas d'injection de service
+ * dans une entité). Le trait porte la logique en dur ; le service la porte
+ * pour les contextes hors-entité (debug, sérialisation, batch, etc.).
  *
- *  La propriété $parent est DÉCLARÉE ICI mais NON MAPPÉE par Doctrine.
- *  Pourquoi ? Parce que le mapping doit référencer la classe concrète
- *  comme targetEntity (Trajet, Demande…), pas l'interface
- *  GhostableInterface — ce que Doctrine ne peut pas gérer depuis un
- *  trait générique.
+ * Les deux implémentations DOIVENT rester synchronisées. Un test d'invariant
+ * vérifie cette équivalence.
  *
- *  Dans votre entité, vous DEVEZ donc redéclarer la propriété $parent
- *  avec les attributs Doctrine voulus. Le redéclarer suffit : la
- *  visibilité protected permet la surcharge, et les méthodes du trait
- *  continuent de fonctionner via $this->parent.
- *
- *  Exemple :
- *
- *      use EricGansa\GhostTreesBundle\Trait\GhostNodeTrait;
- *      use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
- *
- *      #[ORM\Entity]
- *      class Trajet implements GhostableInterface
- *      {
- *          use GhostNodeTrait;
- *
- *          #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'children')]
- *          #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
- *          protected ?GhostableInterface $parent = null;
- *
- *          // (Optionnel) Rétrécir le type de retour pour le confort d'usage.
- *          public function getParent(): ?self
- *          {
- *              return $this->parent;
- *          }
- *      }
- *
- *  Pour les usages sans Doctrine (entités en mémoire, fixtures de test),
- *  le trait fonctionne directement, sans aucune redéclaration.
- * ──────────────────────────────────────────────────────────────────
+ * IMPORTANT — Mapping Doctrine : la propriété $parent est non mappée ici.
+ * Pour une entité Doctrine, redéclarez la propriété avec ses attributs ORM
+ * (voir README pour un exemple complet).
  */
 trait GhostNodeTrait
 {
@@ -62,29 +35,17 @@ trait GhostNodeTrait
      */
     protected ?GhostableInterface $parent = null;
 
-    /**
-     * Retourne le parent direct, ou null si l'entité est une racine.
-     */
     public function getParent(): ?GhostableInterface
     {
         return $this->parent;
     }
 
-    /**
-     * Définit le parent. La validation de profondeur et de cycle
-     * est déléguée à GhostResolver::assertValidParent() — à appeler
-     * explicitement avant cette méthode si besoin.
-     */
     public function setParent(?GhostableInterface $parent): static
     {
         $this->parent = $parent;
-
         return $this;
     }
 
-    /**
-     * Indique si l'entité est un fantôme (a un parent).
-     */
     public function isGhost(): bool
     {
         return null !== $this->parent;
@@ -97,9 +58,6 @@ trait GhostNodeTrait
      *  - valeur locale non nulle           → valeur locale (matérialisée) ;
      *  - valeur locale nulle + parent      → délégation au getter du parent ;
      *  - valeur locale nulle + pas parent  → null.
-     *
-     * @param mixed  $local  Valeur stockée localement dans l'entité.
-     * @param string $getter Nom du getter à invoquer récursivement sur le parent.
      */
     protected function resolve(mixed $local, string $getter): mixed
     {

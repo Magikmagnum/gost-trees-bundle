@@ -6,7 +6,7 @@ namespace EricGansa\GhostTreesBundle\Command;
 
 use Doctrine\ORM\EntityManagerInterface;
 use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
-use EricGansa\GhostTreesBundle\Contract\GhostResolverInterface;
+use EricGansa\GhostTreesBundle\Contract\GhostInspectorInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -14,13 +14,6 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-/**
- * Affiche l'état de résolution d'une entité fantomisable :
- * pour chaque attribut fantomisable, indique si la valeur est locale,
- * héritée du parent, ou non définie.
- *
- *   $ php bin/console debug:ghosts "App\Entity\Trajet" 42
- */
 #[AsCommand(
     name: 'debug:ghosts',
     description: 'Inspecte l\'état de résolution d\'une entité fantôme.'
@@ -29,7 +22,7 @@ final class DebugGhostsCommand extends Command
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly GhostResolverInterface $resolver,
+        private readonly GhostInspectorInterface $inspector,
     ) {
         parent::__construct();
     }
@@ -44,7 +37,6 @@ final class DebugGhostsCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-
         $class = $input->getArgument('class');
         $id = $input->getArgument('id');
 
@@ -60,7 +52,7 @@ final class DebugGhostsCommand extends Command
         }
 
         if (!$entity instanceof GhostableInterface) {
-            $io->error(sprintf('La classe "%s" n\'implémente pas GhostableInterface.', $class));
+            $io->error(sprintf('"%s" n\'implémente pas GhostableInterface.', $class));
             return Command::FAILURE;
         }
 
@@ -77,10 +69,10 @@ final class DebugGhostsCommand extends Command
             ));
         }
 
-        $resolution = $this->resolver->debugResolution($entity);
+        $resolution = $this->inspector->debugResolution($entity);
 
         if (empty($resolution)) {
-            $io->warning('Aucun champ marqué #[GhostableField] dans cette entité.');
+            $io->warning('Aucune propriété marquée #[Ghostable] dans cette entité.');
             return Command::SUCCESS;
         }
 
@@ -99,10 +91,9 @@ final class DebugGhostsCommand extends Command
 
         $io->table(['Attribut', 'Valeur résolue', 'Origine'], $rows);
 
-        $materialized = $this->resolver->isMaterialized($entity);
         $io->writeln(sprintf(
             '<info>Matérialisation :</info> %s',
-            $materialized ? 'partielle ou totale' : 'aucune (entièrement transparent)'
+            $this->inspector->isMaterialized($entity) ? 'partielle ou totale' : 'aucune (entièrement transparent)'
         ));
 
         return Command::SUCCESS;

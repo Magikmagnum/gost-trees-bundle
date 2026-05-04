@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace EricGansa\GhostTreesBundle\Resolver;
 
-use EricGansa\GhostTreesBundle\Attribute\GhostableField;
 use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
 use EricGansa\GhostTreesBundle\Contract\GhostResolverInterface;
 use EricGansa\GhostTreesBundle\Exception\GhostCycleException;
@@ -13,16 +12,21 @@ use EricGansa\GhostTreesBundle\Exception\GhostDepthExceededException;
 /**
  * Implémentation du resolver fantôme.
  *
- * Centralise la logique de :
- *  - traversée fantôme (résolution des valeurs en remontant la chaîne) ;
- *  - introspection (état de matérialisation, debug) ;
- *  - incarnation (promotion d'un fantôme en racine).
+ * Une seule responsabilité : la règle de résolution et son contrat
+ * structurel (profondeur, cycle). Le debug et l'incarnation sont
+ * délégués à d'autres services pour faciliter les tests et l'extension.
  */
 final class GhostResolver implements GhostResolverInterface
 {
     public function __construct(
         private readonly int $maxDepth = 1,
     ) {
+        if ($maxDepth < 1) {
+            throw new \InvalidArgumentException(sprintf(
+                'max_depth doit être >= 1, %d donné.',
+                $maxDepth
+            ));
+        }
     }
 
     public function resolve(GhostableInterface $entity, mixed $localValue, string $getter): mixed
@@ -43,115 +47,6 @@ final class GhostResolver implements GhostResolverInterface
         return $parent->$getter();
     }
 
-    public function isMaterialized(GhostableInterface $entity): bool
-    {
-        if (!$entity->isGhost()) {
-            return false;
-        }
-
-        foreach ($this->getGhostableProperties($entity) as $property) {
-            $property->setAccessible(true);
-            if (null !== $property->getValue($entity)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public function debugResolution(GhostableInterface $entity): array
-    {
-        $result = [];
-
-        foreach ($this->getGhostableProperties($entity) as $property) {
-            $name = $property->getName();
-            $property->setAccessible(true);
-            $localValue = $property->getValue($entity);
-
-            if (null !== $localValue) {
-                $result[$name] = [
-                    'value' => $localValue,
-                    'source' => 'local',
-                    'depth' => 0,
-                ];
-                continue;
-            }
-
-            // Remonter la chaîne fantôme jusqu'à trouver une valeur.
-            $current = $entity->getParent();
-            $depth = 1;
-            $value = null;
-            $source = 'unset';
-
-            while (null !== $current && $depth <= $this->maxDepth + 1) {
-                $reflection = new \ReflectionObject($current);
-                if ($reflection->hasProperty($name)) {
-                    $parentProperty = $reflection->getProperty($name);
-                    $parentProperty->setAccessible(true);
-                    $parentValue = $parentProperty->getValue($current);
-                    if (null !== $parentValue) {
-                        $value = $parentValue;
-                        $source = 'inherited';
-                        break;
-                    }
-                }
-                $current = $current instanceof GhostableInterface ? $current->getParent() : null;
-                ++$depth;
-            }
-
-            $result[$name] = [
-                'value' => $value,
-                'source' => $source,
-                'depth' => 'inherited' === $source ? $depth : 0,
-            ];
-        }
-
-        return $result;
-    }
-
-    public function incarnate(GhostableInterface $entity): void
-    {
-        if (!$entity->isGhost()) {
-            return;
-        }
-
-        foreach ($this->getGhostableProperties($entity) as $property) {
-            $name = $property->getName();
-            $property->setAccessible(true);
-
-            // Si la valeur locale est déjà présente, ne touche à rien.
-            if (null !== $property->getValue($entity)) {
-                continue;
-            }
-
-            // Sinon, matérialiser la valeur héritée.
-            $current = $entity->getParent();
-            while (null !== $current) {
-                $reflection = new \ReflectionObject($current);
-                if ($reflection->hasProperty($name)) {
-                    $parentProperty = $reflection->getProperty($name);
-                    $parentProperty->setAccessible(true);
-                    $parentValue = $parentProperty->getValue($current);
-                    if (null !== $parentValue) {
-                        $property->setValue($entity, $parentValue);
-                        break;
-                    }
-                }
-                $current = $current instanceof GhostableInterface ? $current->getParent() : null;
-            }
-        }
-
-        // Détache le lien parent : l'entité devient une racine.
-        $entity->setParent(null);
-    }
-
-    /**
-     * Vérifie qu'un parent peut être affecté à une entité sans dépasser
-     * la profondeur maximale ni créer de cycle. À appeler depuis setParent().
-     *
-     * @throws GhostCycleException
-     * @throws GhostDepthExceededException
-     */
     public function assertValidParent(GhostableInterface $entity, ?GhostableInterface $parent): void
     {
         if (null === $parent) {
@@ -162,7 +57,9 @@ final class GhostResolver implements GhostResolverInterface
             throw new GhostCycleException('Une entité ne peut pas être son propre parent.');
         }
 
-        // Détection de cycle et calcul de la profondeur.
+        // Calcul de la profondeur effective si on rattache $entity à $parent.
+        // Pour respecter max_depth, on doit s'assurer que la chaîne complète
+        // depuis $entity jusqu'à la racine n'excède pas max_depth niveaux.
         $depth = 1;
         $current = $parent;
         $visited = new \SplObjectStorage();
@@ -190,17 +87,8 @@ final class GhostResolver implements GhostResolverInterface
         }
     }
 
-    /**
-     * @return iterable<\ReflectionProperty>
-     */
-    private function getGhostableProperties(GhostableInterface $entity): iterable
+    public function getMaxDepth(): int
     {
-        $reflection = new \ReflectionObject($entity);
-        foreach ($reflection->getProperties() as $property) {
-            $attributes = $property->getAttributes(GhostableField::class);
-            if (!empty($attributes)) {
-                yield $property;
-            }
-        }
+        return $this->maxDepth;
     }
 }

@@ -6,7 +6,7 @@ namespace EricGansa\GhostTreesBundle\Command;
 
 use Doctrine\ORM\EntityManagerInterface;
 use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
-use EricGansa\GhostTreesBundle\Contract\GhostResolverInterface;
+use EricGansa\GhostTreesBundle\Contract\GhostIncarnatorInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -14,12 +14,6 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-/**
- * Incarne un fantôme : matérialise localement toutes les valeurs résolues,
- * puis détache le lien parent pour transformer l'entité en racine autonome.
- *
- *   $ php bin/console ghosts:incarnate "App\Entity\Trajet" 42
- */
 #[AsCommand(
     name: 'ghosts:incarnate',
     description: 'Incarne un fantôme en racine autonome (matérialise + détache).'
@@ -28,7 +22,7 @@ final class IncarnateGhostCommand extends Command
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly GhostResolverInterface $resolver,
+        private readonly GhostIncarnatorInterface $incarnator,
     ) {
         parent::__construct();
     }
@@ -43,7 +37,6 @@ final class IncarnateGhostCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-
         $class = $input->getArgument('class');
         $id = $input->getArgument('id');
 
@@ -54,7 +47,7 @@ final class IncarnateGhostCommand extends Command
         }
 
         if (!$entity instanceof GhostableInterface) {
-            $io->error(sprintf('La classe "%s" n\'implémente pas GhostableInterface.', $class));
+            $io->error(sprintf('"%s" n\'implémente pas GhostableInterface.', $class));
             return Command::FAILURE;
         }
 
@@ -73,7 +66,7 @@ final class IncarnateGhostCommand extends Command
         }
 
         $this->em->wrapInTransaction(function () use ($entity) {
-            $this->resolver->incarnate($entity);
+            $this->incarnator->incarnate($entity);
         });
 
         $io->success(sprintf('Entité %s #%s incarnée avec succès.', $class, $id));

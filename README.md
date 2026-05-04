@@ -1,5 +1,11 @@
 # Ghost Trees Bundle
 
+[![Tests](https://github.com/ericgansa/ghost-trees-bundle/actions/workflows/tests.yml/badge.svg)](https://github.com/ericgansa/ghost-trees-bundle/actions/workflows/tests.yml)
+[![Security](https://github.com/ericgansa/ghost-trees-bundle/actions/workflows/security.yml/badge.svg)](https://github.com/ericgansa/ghost-trees-bundle/actions/workflows/security.yml)
+[![Latest Version](https://img.shields.io/packagist/v/ericgansa/ghost-trees-bundle.svg)](https://packagist.org/packages/ericgansa/ghost-trees-bundle)
+[![PHP Version](https://img.shields.io/packagist/php-v/ericgansa/ghost-trees-bundle.svg)](https://packagist.org/packages/ericgansa/ghost-trees-bundle)
+[![License](https://img.shields.io/packagist/l/ericgansa/ghost-trees-bundle.svg)](LICENSE)
+
 > **Héritage dynamique pour entités Doctrine.**
 > Les *arbres fantômes* permettent à une entité enfant d'hériter dynamiquement des attributs d'une entité parente, attribut par attribut, sans duplication de données et avec propagation automatique.
 
@@ -57,6 +63,7 @@ Deux étapes :
 Pour une entité Doctrine, il suffit en plus de **redéclarer la propriété `$parent`** avec son mapping (le trait ne peut pas le faire à votre place — Doctrine a besoin de la classe concrète comme `targetEntity`).
 
 ```php
+use EricGansa\GhostTreesBundle\Attribute\Ghostable;
 use EricGansa\GhostTreesBundle\Attribute\GhostableField;
 use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
 use EricGansa\GhostTreesBundle\Trait\GhostNodeTrait;
@@ -73,7 +80,8 @@ class Trajet implements GhostableInterface
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[GhostableField(required: true)]
+    #[Ghostable]                         // métadonnée d'introspection
+    #[GhostableField(required: true)]    // contrainte de validation conditionnelle
     private ?string $lieuDepart = null;
 
     // Redéclaration nécessaire UNIQUEMENT pour le mapping Doctrine.
@@ -132,6 +140,13 @@ php bin/console ghosts:incarnate "App\Entity\Trajet" 42
 3. **Transparence de lecture** : un fantôme non matérialisé renvoie les valeurs du parent.
 4. **Isolation d'écriture** : modifier un fantôme n'affecte jamais le parent.
 5. **Réversibilité** : effacer une valeur locale (`null`) restaure la résolution dynamique.
+
+## Limites connues
+
+- **Relations Doctrine** : la résolution dynamique fonctionne sur les attributs scalaires et les relations dont la cible est elle-même fantomisable. Pour des relations cross-entités complexes (clé étrangère vers une entité non fantomisable, par exemple), prévoir une logique d'application dédiée.
+- **Performance en lecture massive** : chaque getter d'un fantôme peut déclencher un accès au parent. Sur de grandes collections lues en boucle, prévoir l'eager loading de la relation `parent` ou un cache.
+- **Propagation structurelle** : le subscriber Doctrine fourni couvre l'ajout d'éléments aux collections de la racine. Les cas exotiques (sous-collections en cascade, mappings non standards) nécessitent une extension côté projet.
+- **Transactions** : les opérations d'incarnation à grande échelle ne sont pas automatiquement atomiques. Encadrer avec `EntityManager::wrapInTransaction()` côté appelant.
 
 ## Documentation
 

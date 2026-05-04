@@ -4,8 +4,10 @@ services:
         autoconfigure: true
         public: false
 
-    # Resolver central : c'est le service qui implémente la logique
-    # de traversée fantôme (résolution attribut par attribut).
+    # ─── Cache de métadonnées (singleton) ──────────────────────────
+    EricGansa\GhostTreesBundle\Metadata\GhostMetadata: ~
+
+    # ─── Resolver : résolution + validation structurelle ────────────
     EricGansa\GhostTreesBundle\Resolver\GhostResolver:
         arguments:
             $maxDepth: '%ghost_trees.max_depth%'
@@ -13,20 +15,33 @@ services:
     EricGansa\GhostTreesBundle\Contract\GhostResolverInterface:
         alias: EricGansa\GhostTreesBundle\Resolver\GhostResolver
 
-    # Subscriber Doctrine : propagation structurelle des collections.
-    # Désactivé si auto_propagate_collections = false.
+    # ─── Inspector : introspection (debug, isMaterialized) ──────────
+    EricGansa\GhostTreesBundle\Inspector\GhostInspector: ~
+
+    EricGansa\GhostTreesBundle\Contract\GhostInspectorInterface:
+        alias: EricGansa\GhostTreesBundle\Inspector\GhostInspector
+
+    # ─── Incarnator : promotion fantôme → racine ────────────────────
+    EricGansa\GhostTreesBundle\Incarnator\GhostIncarnator: ~
+
+    EricGansa\GhostTreesBundle\Contract\GhostIncarnatorInterface:
+        alias: EricGansa\GhostTreesBundle\Incarnator\GhostIncarnator
+
+    # ─── Subscriber Doctrine : propagation + suppression ────────────
     EricGansa\GhostTreesBundle\EventSubscriber\GhostPropagationSubscriber:
         arguments:
-            $enabled: '%ghost_trees.auto_propagate_collections%'
+            $autoPropagateCollections: '%ghost_trees.auto_propagate_collections%'
+            $onRootDelete: '%ghost_trees.on_root_delete%'
         tags:
-            - { name: doctrine.event_subscriber }
+            - { name: doctrine.event_listener, event: onFlush }
+            - { name: doctrine.event_listener, event: preRemove }
 
-    # Validateur de la contrainte #[GhostableField]
+    # ─── Validateur de la contrainte #[GhostableField] ──────────────
     EricGansa\GhostTreesBundle\Validator\GhostableFieldValidator:
         tags:
             - { name: validator.constraint_validator }
 
-    # Commandes CLI
+    # ─── Commandes CLI ──────────────────────────────────────────────
     EricGansa\GhostTreesBundle\Command\DebugGhostsCommand:
         tags:
             - { name: console.command }
