@@ -7,6 +7,7 @@ namespace EricGansa\GhostTreesBundle\Incarnator;
 use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
 use EricGansa\GhostTreesBundle\Contract\GhostIncarnatorInterface;
 use EricGansa\GhostTreesBundle\Event\GhostIncarnatedEvent;
+use EricGansa\GhostTreesBundle\Exception\GhostCycleException;
 use EricGansa\GhostTreesBundle\Metadata\GhostMetadata;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -60,11 +61,28 @@ final class GhostIncarnator implements GhostIncarnatorInterface
     /**
      * Remonte la chaîne fantôme pour trouver la première valeur matérialisée
      * d'un attribut donné.
+     *
+     * Protection contre les cycles : un SplObjectStorage trace les nœuds
+     * déjà visités. Un cycle détecté en données (manipulation SQL directe)
+     * lève GhostCycleException plutôt que de boucler indéfiniment.
+     *
+     * @throws GhostCycleException si un cycle est détecté dans la chaîne
      */
     private function resolveFromAncestors(GhostableInterface $entity, string $propertyName): mixed
     {
+        $visited = new \SplObjectStorage();
         $current = $entity->getParent();
+
         while (null !== $current) {
+            if ($visited->contains($current)) {
+                throw new GhostCycleException(sprintf(
+                    'Cycle détecté lors de la résolution de la propriété "%s". '
+                    . 'La chaîne fantôme contient une boucle — vérifiez l\'intégrité des données.',
+                    $propertyName,
+                ));
+            }
+            $visited->attach($current);
+
             foreach ($this->metadata->getProperties($current) as $property) {
                 if ($property->name !== $propertyName) {
                     continue;

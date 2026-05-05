@@ -20,9 +20,16 @@ interface GhostableInterface
     public function getParent(): ?self;
 
     /**
-     * Définit le parent de cette entité. Doit lever une exception si :
-     *  - on essaie de se référencer soi-même comme parent ;
-     *  - le parent dépasserait la profondeur maximale autorisée.
+     * Définit le parent de cette entité.
+     *
+     * Garantit : lève GhostCycleException si l'entité se désigne elle-même
+     * comme parent direct ($entity->setParent($entity)).
+     *
+     * Délègue : la validation de profondeur et des cycles indirects est
+     * confiée à GhostResolverInterface::assertValidParent(), qui requiert la
+     * configuration max_depth et doit être appelé avant la persistence.
+     *
+     * @throws \EricGansa\GhostTreesBundle\Exception\GhostCycleException
      */
     public function setParent(?self $parent): static;
 

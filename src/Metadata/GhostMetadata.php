@@ -58,7 +58,9 @@ final class GhostMetadata
                 /** @var Ghostable $ghostableAttr */
                 $ghostableAttr = $attributes[0]->newInstance();
 
-                $property->setAccessible(true);
+                // setAccessible(true) est un no-op depuis PHP 8.1 :
+                // toutes les propriétés sont accessibles via Reflection sans
+                // appel explicite. Suppression de l'appel superflu.
 
                 $properties[] = new GhostablePropertyMetadata(
                     name: $property->getName(),

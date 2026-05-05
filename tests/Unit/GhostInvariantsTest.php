@@ -254,6 +254,63 @@ final class GhostInvariantsTest extends TestCase
         $this->assertSame($valeurViaTrait, $valeurViaResolver);
     }
 
+    // ─── Corrections de régression ────────────────────────────────────
+
+    /**
+     * Correction #2 — setParent() doit rejeter l'auto-référence directe.
+     */
+    public function testTrait_SetParent_RejectsSelfReference(): void
+    {
+        $entity = new FakeTrajet();
+
+        $this->expectException(GhostCycleException::class);
+        $entity->setParent($entity);
+    }
+
+    /**
+     * Correction #4 — resolveFromAncestors() doit lever GhostCycleException
+     * sur une chaîne corrompue en base (cycle A→B→A simulé par réflexion).
+     */
+    public function testIncarnator_ThrowsCycleExceptionOnCorruptChain(): void
+    {
+        $a = new FakeTrajet(); // lieuDepart = null (doit remonter)
+        $b = new FakeTrajet(); // lieuDepart = null (aucune valeur à propager)
+
+        // Simule une corruption SQL : A.parent = B, B.parent = A
+        $rp = new \ReflectionProperty(FakeTrajet::class, 'parent');
+        $rp->setValue($a, $b);
+        $rp->setValue($b, $a);
+
+        $this->expectException(GhostCycleException::class);
+        $this->incarnator->incarnate($a);
+    }
+
+    /**
+     * Correction #5 — debugResolution() ne doit pas boucler indéfiniment
+     * sur des données corrompues ; il doit retourner source='cycle_detected'.
+     */
+    public function testDebugResolution_HandlesCycleInCorruptData(): void
+    {
+        $a = new FakeTrajet();
+        $b = new FakeTrajet();
+
+        $rp = new \ReflectionProperty(FakeTrajet::class, 'parent');
+        $rp->setValue($a, $b);
+        $rp->setValue($b, $a);
+
+        $result = $this->inspector->debugResolution($a);
+
+        $this->assertIsArray($result);
+        $this->assertNotEmpty($result);
+        foreach ($result as $propertyName => $info) {
+            $this->assertSame(
+                'cycle_detected',
+                $info['source'],
+                sprintf('La propriété "%s" devrait signaler un cycle.', $propertyName)
+            );
+        }
+    }
+
     // ─── Métadonnées ──────────────────────────────────────────────────
 
     public function testMetadata_DiscoversGhostableProperties(): void

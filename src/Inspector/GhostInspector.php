@@ -6,6 +6,7 @@ namespace EricGansa\GhostTreesBundle\Inspector;
 
 use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
 use EricGansa\GhostTreesBundle\Contract\GhostInspectorInterface;
+use EricGansa\GhostTreesBundle\Exception\GhostCycleException;
 use EricGansa\GhostTreesBundle\Metadata\GhostMetadata;
 
 /**
@@ -53,12 +54,23 @@ final class GhostInspector implements GhostInspectorInterface
             }
 
             // Remonter la chaîne fantôme jusqu'à trouver une valeur matérialisée.
+            // Protection contre les cycles : SplObjectStorage pour détecter
+            // les boucles dues à des données corrompues (manipulation SQL directe).
             $current = $entity->getParent();
             $depth = 1;
             $value = null;
             $source = 'unset';
+            $visited = new \SplObjectStorage();
 
             while (null !== $current) {
+                if ($visited->contains($current)) {
+                    // Cycle détecté : on arrête la traversée proprement
+                    // plutôt que de boucler indéfiniment.
+                    $source = 'cycle_detected';
+                    break;
+                }
+                $visited->attach($current);
+
                 $parentProperties = $this->metadata->getProperties($current);
                 foreach ($parentProperties as $parentProperty) {
                     if ($parentProperty->name !== $property->name) {

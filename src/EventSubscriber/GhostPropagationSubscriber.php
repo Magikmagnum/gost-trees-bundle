@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace EricGansa\GhostTreesBundle\EventSubscriber;
 
 use Doctrine\Common\Collections\Collection;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PreRemoveEventArgs;
 use Doctrine\ORM\Events;
@@ -113,7 +114,11 @@ final class GhostPropagationSubscriber
             return;
         }
 
-        $entity = $args->getObject();
+        // COMPATIBILITÉ Doctrine ORM 2.x / 3.x :
+        // Doctrine 3.0 : PreRemoveEventArgs::getObject()
+        // Doctrine 2.x : PreRemoveEventArgs::getEntity()
+        /** @var object $entity */
+        $entity = method_exists($args, 'getObject') ? $args->getObject() : $args->getEntity(); // @phpstan-ignore-line
         if (!$entity instanceof GhostableInterface) {
             return;
         }
@@ -140,7 +145,7 @@ final class GhostPropagationSubscriber
      *
      * @return list<GhostableInterface>
      */
-    private function getChildrenOf(GhostableInterface $parent, $em): array
+    private function getChildrenOf(GhostableInterface $parent, EntityManagerInterface $em): array
     {
         $repository = $em->getRepository($parent::class);
 

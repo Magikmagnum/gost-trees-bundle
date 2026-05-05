@@ -40,6 +40,13 @@ final class IncarnateGhostCommand extends Command
         $class = $input->getArgument('class');
         $id = $input->getArgument('id');
 
+        // Validation préalable du FQCN : em->find() lèverait une exception
+        // Doctrine opaque si la classe n'existe pas ou n'est pas une entité.
+        if (!class_exists($class)) {
+            $io->error(sprintf('Classe "%s" introuvable. Vérifiez le FQCN (ex: "App\\Entity\\Trajet").', $class));
+            return Command::FAILURE;
+        }
+
         $entity = $this->em->find($class, $id);
         if (null === $entity) {
             $io->error(sprintf('Aucune entité %s avec id=%s.', $class, $id));
@@ -65,8 +72,13 @@ final class IncarnateGhostCommand extends Command
             return Command::SUCCESS;
         }
 
-        $this->em->wrapInTransaction(function () use ($entity) {
+        // CORRECTIF : flush() OBLIGATOIRE à l'intérieur de la transaction.
+        // wrapInTransaction() ouvre/commite la transaction mais ne flush pas
+        // automatiquement. Sans flush, les modifications restent en mémoire PHP
+        // et rien n'est écrit en base, malgré le commit.
+        $this->em->wrapInTransaction(function () use ($entity): void {
             $this->incarnator->incarnate($entity);
+            $this->em->flush();
         });
 
         $io->success(sprintf('Entité %s #%s incarnée avec succès.', $class, $id));

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace EricGansa\GhostTreesBundle\Trait;
 
 use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
+use EricGansa\GhostTreesBundle\Exception\GhostCycleException;
 
 /**
  * Trait à utiliser dans les entités fantomisables.
@@ -22,6 +23,12 @@ use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
  *
  * Les deux implémentations DOIVENT rester synchronisées. Un test d'invariant
  * vérifie cette équivalence.
+ *
+ * IMPORTANT — contrat setParent() : le trait garantit uniquement la détection
+ * de l'auto-référence directe ($entity->setParent($entity)). La validation
+ * de profondeur et des cycles indirects requiert une configuration externe
+ * (max_depth) et est déléguée à GhostResolverInterface::assertValidParent(),
+ * qui DOIT être appelé avant toute persistence du changement de parent.
  *
  * IMPORTANT — Mapping Doctrine : la propriété $parent est non mappée ici.
  * Pour une entité Doctrine, redéclarez la propriété avec ses attributs ORM
@@ -42,6 +49,13 @@ trait GhostNodeTrait
 
     public function setParent(?GhostableInterface $parent): static
     {
+        // Détection de l'auto-référence directe : seule validation possible
+        // sans service externe. Les cycles indirects (A→B→A) et la profondeur
+        // doivent être validés via GhostResolverInterface::assertValidParent().
+        if (null !== $parent && $parent === $this) {
+            throw new GhostCycleException('Une entité fantôme ne peut pas être son propre parent.');
+        }
+
         $this->parent = $parent;
         return $this;
     }
