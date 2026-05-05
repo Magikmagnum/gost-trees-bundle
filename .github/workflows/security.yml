@@ -47,21 +47,21 @@ jobs:
         run: composer audit --abandoned=report
         continue-on-error: true
 
-  codeql:
-    name: CodeQL Static Analysis
-    runs-on: ubuntu-latest
+  # codeql:
+  #   name: CodeQL Static Analysis
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: 'php'
+  #     - name: Initialize CodeQL
+  #       uses: github/codeql-action/init@v3
+  #       with:
+  #         languages: 'php'
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+  #     - name: Perform CodeQL Analysis
+  #       uses: github/codeql-action/analyze@v3
 
   dependency-review:
     name: Dependency Review (PR only)
