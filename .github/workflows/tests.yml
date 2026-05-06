@@ -12,6 +12,35 @@ concurrency:
 
 jobs:
 
+  # ── 0. Dependency Review ──────────────────────────────────────────────────
+  # Bloque les PR qui introduisent des dépendances vulnérables.
+  #
+  # PRÉ-REQUIS : le "Dependency graph" doit être activé sur le dépôt :
+  #   Settings → Code security and analysis → Dependency graph → Enable
+  #
+  # Si le dépôt est privé ou sur GitHub Free sans cette option,
+  # ce job échoue silencieusement (continue-on-error: true) pour ne
+  # pas bloquer la CI — activez le graph pour la protection complète.
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    # Ne s'exécute que sur les PR (compare base..head)
+    if: github.event_name == 'pull_request'
+    # Ne bloque pas si le Dependency graph n'est pas activé sur ce dépôt.
+    # Retirez cette ligne une fois le graph activé pour une protection stricte.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Bloque les dépendances avec une sévérité >= high
+          fail-on-severity: high
+          # Interdit les licences non-permissives
+          deny-licenses: GPL-2.0, GPL-3.0, LGPL-2.0, LGPL-2.1
+
   # ── 1. Analyse statique PHPStan ───────────────────────────────────────────
   phpstan:
     name: PHPStan (level 8)

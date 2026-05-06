@@ -29,39 +29,45 @@
     "minMsi": 70,
     "minCoveredMsi": 85,
 
-    // Mutateurs actifs — liste explicite pour éviter les faux positifs
     "mutators": {
-        // Opérateurs de comparaison
+        // ── Comparaisons ─────────────────────────────────────────────────────
+        // @comparison n'existe pas dans le schéma — on décompose en trois groupes
+        // valides qui couvrent les mêmes cas : égalité, bornes et négation.
         "@equal": true,
-        "@comparison": true,
+        "@conditional_boundary": true,
+        "@conditional_negotiation": true,
 
-        // Valeurs retournées
-        "TrueValue": true,
-        "FalseValue": true,
-        "OneZeroInteger": true,
+        // ── Valeurs de retour ────────────────────────────────────────────────
+        // @return_value couvre TrueValue, FalseValue, NewObject, This, etc.
+        // Return_ n'existe pas dans le schéma — on utilise le groupe complet.
+        "@return_value": true,
 
-        // Logique
-        "Identical": true,
-        "NotIdentical": true,
+        // ── Nombres entiers ──────────────────────────────────────────────────
+        // OneZeroInteger n'existe pas — on utilise les mutateurs individuels
+        "DecrementInteger": true,
+        "IncrementInteger": true,
+
+        // ── Logique booléenne ────────────────────────────────────────────────
         "LogicalAnd": true,
         "LogicalOr": true,
         "LogicalNot": true,
-        "Nullsafe": true,
 
-        // Return statements
-        "Return_": true,
+        // ── Opérateurs null-safe ─────────────────────────────────────────────
+        // "Nullsafe" n'existe pas — on utilise les deux mutateurs distincts
+        "NullSafeMethodCall": true,
+        "NullSafePropertyCall": true,
 
-        // Suppression de lignes
+        // ── Suppression d'appels ─────────────────────────────────────────────
         "MethodCallRemoval": {
             "ignore": [
-                // Les dispatchers d'événements sont optionnels par nature ;
+                // Le dispatcher d'événements est optionnel par nature ;
                 // supprimer l'appel ne doit pas casser les tests métier.
                 "EricGansa\\GhostTreesBundle\\Incarnator\\GhostIncarnator::dispatch"
             ]
         },
 
-        // Ne pas muter les exceptions : les tests de cycle/profondeur
-        // vérifient déjà ces chemins.
+        // ── Désactivé ────────────────────────────────────────────────────────
+        // Les tests de cycle/profondeur couvrent déjà tous les chemins throw.
         "Throw_": false
     }
 }

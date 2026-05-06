@@ -37,7 +37,13 @@ jobs:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: composer-infection-${{ hashFiles('composer.json') }}
 
-      - run: composer install --no-interaction --no-progress --prefer-dist
+      # Infection 0.27 utilise DummySymfony6FileSystem qui n'est pas compatible
+      # avec le changement de signature de Filesystem::appendToFile() en Symfony 7.
+      # On épingle symfony/* à 6.4 (LTS) pour ce job uniquement.
+      - name: Pin Symfony 6.4 for Infection compatibility
+        run: composer config extra.symfony.require "6.4.*"
+
+      - run: composer update --no-interaction --no-progress --prefer-dist
 
       # Génère d'abord la couverture PHPUnit (nécessaire pour Infection).
       - name: Generate PHPUnit coverage
