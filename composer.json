@@ -30,7 +30,7 @@
         "phpunit/phpunit": "^10.0",
         "maglnet/composer-require-checker": "^4.5",
         "phpro/grumphp": "^2.5",
-        "symfony/phpunit-bridge": "^6.4.29 || ^7.3.7",
+        "symfony/phpunit-bridge": "^8.0.8",
         "symfony/yaml": "^6.4.29 || ^7.3.7"
     },
     "autoload": {
