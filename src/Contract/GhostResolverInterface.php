@@ -20,7 +20,7 @@ interface GhostResolverInterface
     /**
      * Résout la valeur d'un attribut donné.
      *
-     * @param string $getter Nom du getter à appeler récursivement sur le parent.
+     * @param string $getter nom du getter à appeler récursivement sur le parent
      */
     public function resolve(GhostableInterface $entity, mixed $localValue, string $getter): mixed;
 

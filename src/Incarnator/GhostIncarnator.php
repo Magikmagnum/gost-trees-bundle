@@ -40,7 +40,7 @@ final class GhostIncarnator implements GhostIncarnatorInterface
 
         $previousParent = $entity->getParent();
 
-        foreach ($this->metadata->getProperties($entity) as $property) {
+        foreach ($this->metadata->getPropertiesFor($entity) as $property) {
             // Si la valeur locale est déjà présente, on la conserve.
             if (null !== $property->readValue($entity)) {
                 continue;
@@ -48,6 +48,7 @@ final class GhostIncarnator implements GhostIncarnatorInterface
 
             // Sinon, on matérialise la valeur héritée.
             $resolvedValue = $this->resolveFromAncestors($entity, $property->name);
+
             if (null !== $resolvedValue) {
                 $property->writeValue($entity, $resolvedValue);
             }
@@ -75,24 +76,21 @@ final class GhostIncarnator implements GhostIncarnatorInterface
 
         while (null !== $current) {
             if ($visited->contains($current)) {
-                throw new GhostCycleException(sprintf(
-                    'Cycle détecté lors de la résolution de la propriété "%s". '
-                    . 'La chaîne fantôme contient une boucle — vérifiez l\'intégrité des données.',
-                    $propertyName,
-                ));
+                throw new GhostCycleException(\sprintf('Cycle détecté lors de la résolution de la propriété "%s". La chaîne fantôme contient une boucle — vérifiez l\'intégrité des données.', $propertyName));
             }
             $visited->attach($current);
 
-            foreach ($this->metadata->getProperties($current) as $property) {
+            foreach ($this->metadata->getPropertiesFor($current) as $property) {
                 if ($property->name !== $propertyName) {
                     continue;
                 }
                 $value = $property->readValue($current);
+
                 if (null !== $value) {
                     return $value;
                 }
             }
-            $current = $current instanceof GhostableInterface ? $current->getParent() : null;
+            $current = $current->getParent();
         }
 
         return null;

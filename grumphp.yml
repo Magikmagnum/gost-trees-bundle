@@ -1,0 +1,49 @@
+grumphp:
+    # Bloque le commit si une tâche échoue.
+    stop_on_failure: true
+    process_timeout: 180
+
+    # Affiche la sortie des commandes en cas d'échec.
+    hide_circumvention_tip: false
+
+    tasks:
+
+        # ── 1. Validation composer.json ─────────────────────────────────────
+        composer:
+            file: composer.json
+            no_check_publish: true
+            no_check_lock: false
+
+        # ── 2. Audit de sécurité des dépendances ────────────────────────────
+        # Bloque si une CVE connue est trouvée dans composer.lock.
+        # Désactiver temporairement avec : grumphp run --tasks-only=phpstan
+        composer_require_checker:
+            composer_file: composer.json
+
+        # ── 3. Formatage PHP CS Fixer ───────────────────────────────────────
+        # Vérifie le style SANS modifier les fichiers (--dry-run).
+        # Pour corriger : ./vendor/bin/php-cs-fixer fix
+        phpcsfixer:
+            config: .php-cs-fixer.php
+            allow_risky: true
+            using_cache: true
+            verbose: false
+
+        # ── 4. Analyse statique PHPStan ─────────────────────────────────────
+        phpstan:
+            configuration: phpstan.neon
+            use_grumphp_paths: false
+            memory_limit: '256M'
+
+        # ── 5. Tests PHPUnit ────────────────────────────────────────────────
+        # Lancer toutes les suites (Unit + Integration).
+        phpunit:
+            config_file: phpunit.xml.dist
+            testsuite: null     # null = toutes les suites
+            always_execute: false
+
+    # ── Configuration globale ────────────────────────────────────────────────
+    # ascii: désactivé (fichiers optionnels, décommenter si souhaité)
+    # ascii:
+    #     failed:  'grumphp-grumpy.txt'
+    #     succeeded: 'grumphp-happy.txt'

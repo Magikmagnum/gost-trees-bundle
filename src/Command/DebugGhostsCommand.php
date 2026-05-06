@@ -16,7 +16,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'debug:ghosts',
-    description: 'Inspecte l\'état de résolution d\'une entité fantôme.'
+    description: 'Inspecte l\'état de résolution d\'une entité fantôme.',
 )]
 final class DebugGhostsCommand extends Command
 {
@@ -41,49 +41,56 @@ final class DebugGhostsCommand extends Command
         $id = $input->getArgument('id');
 
         if (!class_exists($class)) {
-            $io->error(sprintf('Classe "%s" introuvable.', $class));
+            $io->error(\sprintf('Classe "%s" introuvable.', $class));
+
             return Command::FAILURE;
         }
 
         $entity = $this->em->find($class, $id);
+
         if (null === $entity) {
-            $io->error(sprintf('Aucune entité %s avec id=%s.', $class, $id));
+            $io->error(\sprintf('Aucune entité %s avec id=%s.', $class, $id));
+
             return Command::FAILURE;
         }
 
         if (!$entity instanceof GhostableInterface) {
-            $io->error(sprintf('"%s" n\'implémente pas GhostableInterface.', $class));
+            $io->error(\sprintf('"%s" n\'implémente pas GhostableInterface.', $class));
+
             return Command::FAILURE;
         }
 
-        $io->title(sprintf('%s #%s', $class, $id));
+        $io->title(\sprintf('%s #%s', $class, $id));
 
         $parent = $entity->getParent();
+
         if (null === $parent) {
             $io->writeln('<info>Statut :</info> racine (pas de parent)');
         } else {
-            $io->writeln(sprintf(
+            $io->writeln(\sprintf(
                 '<info>Statut :</info> fantôme de %s #%s',
                 $parent::class,
-                method_exists($parent, 'getId') ? (string) $parent->getId() : '?'
+                method_exists($parent, 'getId') ? (string) $parent->getId() : '?',
             ));
         }
 
         $resolution = $this->inspector->debugResolution($entity);
 
         if (empty($resolution)) {
-            $io->warning('Aucune propriété marquée #[Ghostable] dans cette entité.');
+            $io->warning('Aucune propriété marquée #[GhostField] dans cette entité.');
+
             return Command::SUCCESS;
         }
 
         $rows = [];
+
         foreach ($resolution as $name => $info) {
             $rows[] = [
                 $name,
                 $this->stringify($info['value']),
                 match ($info['source']) {
                     'local' => '<fg=green>MATÉRIALISÉ</>',
-                    'inherited' => sprintf('<fg=cyan>FANTÔME ← niveau %d</>', $info['depth']),
+                    'inherited' => \sprintf('<fg=cyan>FANTÔME ← niveau %d</>', $info['depth']),
                     default => '<fg=gray>non défini</>',
                 },
             ];
@@ -91,9 +98,9 @@ final class DebugGhostsCommand extends Command
 
         $io->table(['Attribut', 'Valeur résolue', 'Origine'], $rows);
 
-        $io->writeln(sprintf(
+        $io->writeln(\sprintf(
             '<info>Matérialisation :</info> %s',
-            $this->inspector->isMaterialized($entity) ? 'partielle ou totale' : 'aucune (entièrement transparent)'
+            $this->inspector->isMaterialized($entity) ? 'partielle ou totale' : 'aucune (entièrement transparent)',
         ));
 
         return Command::SUCCESS;
@@ -104,15 +111,19 @@ final class DebugGhostsCommand extends Command
         if (null === $value) {
             return '<fg=gray>null</>';
         }
-        if (is_scalar($value)) {
+
+        if (\is_scalar($value)) {
             return (string) $value;
         }
+
         if ($value instanceof \DateTimeInterface) {
             return $value->format('Y-m-d H:i:s');
         }
-        if (is_object($value)) {
-            return sprintf('%s#%s', $value::class, method_exists($value, 'getId') ? (string) $value->getId() : '?');
+
+        if (\is_object($value)) {
+            return \sprintf('%s#%s', $value::class, method_exists($value, 'getId') ? (string) $value->getId() : '?');
         }
+
         return get_debug_type($value);
     }
 }

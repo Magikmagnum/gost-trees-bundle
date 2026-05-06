@@ -4,28 +4,16 @@ declare(strict_types=1);
 
 namespace EricGansa\GhostTreesBundle\Attribute;
 
-use Attribute;
 use Symfony\Component\Validator\Constraint;
 
 /**
- * Contrainte de validation pour un champ fantomisable.
+ * @deprecated Utiliser #[RequiredOnRoot] à la place. Sera supprimé en v1.0.
  *
- * Rôle PUREMENT VALIDATIONNEL : si "required" est vrai, le champ est
- * obligatoire UNIQUEMENT sur les racines. Sur les fantômes, la contrainte
- * est silencieuse (la valeur sera héritée du parent).
- *
- * Cette contrainte est INDÉPENDANTE de l'attribut #[Ghostable] : on peut
- * vouloir une validation conditionnelle sans avoir besoin de la résolution
- * dynamique (cas rare mais légitime).
- *
- * Exemple :
- *
- *     #[ORM\Column(length: 255, nullable: true)]
- *     #[Ghostable]
- *     #[GhostableField(required: true)]
- *     private ?string $lieuDepart = null;
+ * Note : le paramètre $required=false est conservé pour BC mais #[RequiredOnRoot]
+ * est toujours "required: true" par nature. Un #[GhostableField(required: false)]
+ * était un no-op, et reste tel via cet alias.
  */
-#[Attribute(Attribute::TARGET_PROPERTY)]
+#[\Attribute(\Attribute::TARGET_PROPERTY)]
 final class GhostableField extends Constraint
 {
     public function __construct(
@@ -42,7 +30,7 @@ final class GhostableField extends Constraint
         return $this->message ?? 'Ce champ est obligatoire sur une entité racine.';
     }
 
-    public function getTargets(): string|array
+    public function getTargets(): string
     {
         return self::PROPERTY_CONSTRAINT;
     }

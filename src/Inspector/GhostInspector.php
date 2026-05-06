@@ -6,7 +6,6 @@ namespace EricGansa\GhostTreesBundle\Inspector;
 
 use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
 use EricGansa\GhostTreesBundle\Contract\GhostInspectorInterface;
-use EricGansa\GhostTreesBundle\Exception\GhostCycleException;
 use EricGansa\GhostTreesBundle\Metadata\GhostMetadata;
 
 /**
@@ -28,7 +27,7 @@ final class GhostInspector implements GhostInspectorInterface
             return false;
         }
 
-        foreach ($this->metadata->getProperties($entity) as $property) {
+        foreach ($this->metadata->getPropertiesFor($entity) as $property) {
             if (null !== $property->readValue($entity)) {
                 return true;
             }
@@ -41,7 +40,7 @@ final class GhostInspector implements GhostInspectorInterface
     {
         $result = [];
 
-        foreach ($this->metadata->getProperties($entity) as $property) {
+        foreach ($this->metadata->getPropertiesFor($entity) as $property) {
             $localValue = $property->readValue($entity);
 
             if (null !== $localValue) {
@@ -71,12 +70,14 @@ final class GhostInspector implements GhostInspectorInterface
                 }
                 $visited->attach($current);
 
-                $parentProperties = $this->metadata->getProperties($current);
+                $parentProperties = $this->metadata->getPropertiesFor($current);
+
                 foreach ($parentProperties as $parentProperty) {
                     if ($parentProperty->name !== $property->name) {
                         continue;
                     }
                     $parentValue = $parentProperty->readValue($current);
+
                     if (null !== $parentValue) {
                         $value = $parentValue;
                         $source = 'inherited';
@@ -84,7 +85,7 @@ final class GhostInspector implements GhostInspectorInterface
                     }
                 }
 
-                $current = $current instanceof GhostableInterface ? $current->getParent() : null;
+                $current = $current->getParent();
                 ++$depth;
             }
 

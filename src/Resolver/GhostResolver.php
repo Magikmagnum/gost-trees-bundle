@@ -22,10 +22,7 @@ final class GhostResolver implements GhostResolverInterface
         private readonly int $maxDepth = 1,
     ) {
         if ($maxDepth < 1) {
-            throw new \InvalidArgumentException(sprintf(
-                'max_depth doit être >= 1, %d donné.',
-                $maxDepth
-            ));
+            throw new \InvalidArgumentException(\sprintf('max_depth doit être >= 1, %d donné.', $maxDepth));
         }
     }
 
@@ -36,6 +33,7 @@ final class GhostResolver implements GhostResolverInterface
         }
 
         $parent = $entity->getParent();
+
         if (null === $parent) {
             return null;
         }
@@ -72,14 +70,18 @@ final class GhostResolver implements GhostResolverInterface
             $visited->attach($current);
 
             $next = $current->getParent();
+
             if (null !== $next) {
+                // La détection de cycle est prioritaire sur le dépassement de profondeur :
+                // un cycle doit toujours lever GhostCycleException, quelle que soit
+                // la valeur de max_depth configurée.
+                if ($visited->contains($next)) {
+                    throw new GhostCycleException('Cycle détecté dans la chaîne fantôme.');
+                }
                 ++$depth;
+
                 if ($depth > $this->maxDepth) {
-                    throw new GhostDepthExceededException(sprintf(
-                        'Profondeur fantôme dépassée : %d > %d (max).',
-                        $depth,
-                        $this->maxDepth
-                    ));
+                    throw new GhostDepthExceededException(\sprintf('Profondeur fantôme dépassée : %d > %d (max).', $depth, $this->maxDepth));
                 }
             }
 

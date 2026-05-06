@@ -1,0 +1,72 @@
+name: Mutation Testing
+
+on:
+  # Sur chaque PR — détecte les régressions de couverture avant le merge.
+  pull_request:
+    branches: [main, develop]
+
+  # Déclenchement manuel depuis l'onglet Actions.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  infection:
+    name: Infection (MSI ≥ 70 %)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          # Xdebug requis pour la collecte de couverture par Infection.
+          coverage: xdebug
+          tools: composer:v2
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-infection-${{ hashFiles('composer.json') }}
+
+      - run: composer install --no-interaction --no-progress --prefer-dist
+
+      # Génère d'abord la couverture PHPUnit (nécessaire pour Infection).
+      - name: Generate PHPUnit coverage
+        run: |
+          mkdir -p coverage
+          vendor/bin/phpunit --testsuite=Unit --coverage-xml=coverage/xml --log-junit=coverage/junit.xml
+        env:
+          XDEBUG_MODE: coverage
+
+      - name: Run Infection
+        run: |
+          vendor/bin/infection \
+            --configuration=infection.json5 \
+            --threads=$(nproc) \
+            --min-msi=70 \
+            --min-covered-msi=85 \
+            --coverage=coverage \
+            --logger-github=true
+        env:
+          XDEBUG_MODE: coverage
+          # Active les annotations GitHub (annotations sur les mutations non tuées)
+          INFECTION_BADGE_API_KEY: ${{ secrets.INFECTION_BADGE_API_KEY }}
+
+      - name: Upload Infection report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: infection-report
+          path: |
+            coverage/infection.log
+            coverage/infection.html
+          retention-days: 14

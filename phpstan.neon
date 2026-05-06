@@ -1,0 +1,42 @@
+includes:
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+
+parameters:
+    level: 8
+
+    paths:
+        - src
+
+    excludePaths:
+        - tests
+
+    ignoreErrors:
+        # ── GhostNodeTrait : non analysé en isolation (PHP trait) ─────────────
+        # PHPStan ne peut pas analyser un trait sans classe concrète qui l'utilise.
+        # L'analyse est effective via les entités applicatives (hors périmètre du bundle).
+        -
+            identifier: trait.unused
+            path: src/Trait/GhostNodeTrait.php
+
+        # ── PersistentCollection : méthodes hors interface Collection ─────────
+        # getOwner() et getInsertDiff() existent sur PersistentCollection (Doctrine)
+        # mais pas sur l'interface Collection. Sans phpstan-doctrine, PHPStan
+        # ne peut pas résoudre le type réel retourné par getScheduledCollectionUpdates().
+        -
+            message: '#Call to an undefined method Doctrine\\Common\\Collections\\Collection::getOwner\(\)#'
+            path: src/EventSubscriber/GhostPropagationSubscriber.php
+        -
+            message: '#Call to an undefined method Doctrine\\Common\\Collections\\Collection::getInsertDiff\(\)#'
+            path: src/EventSubscriber/GhostPropagationSubscriber.php
+
+        # ── Génériques manquants dans Symfony/Doctrine ───────────────────────
+        # Les interfaces Symfony/Doctrine ne déclarent pas leurs paramètres
+        # génériques (ex: EventDispatcherInterface, EntityRepository).
+        # Remplacement du paramètre déprécié checkGenericClassInNonGenericObjectType.
+        -
+            identifier: missingType.generics
+
+    # Extensions disponibles avec les packages optionnels :
+    # includes:
+    #     - vendor/phpstan/phpstan-doctrine/extension.neon
+    #     - vendor/phpstan/phpstan-symfony/extension.neon

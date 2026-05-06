@@ -11,14 +11,24 @@
     ],
     "require": {
         "php": ">=8.2",
-        "symfony/framework-bundle": "^6.4 || ^7.0",
-        "symfony/validator": "^6.4 || ^7.0",
-        "symfony/console": "^6.4 || ^7.0",
+        "doctrine/doctrine-bundle": "^2.10",
         "doctrine/orm": "^2.17 || ^3.0",
-        "doctrine/doctrine-bundle": "^2.10"
+        "symfony/config": "^6.4 || ^7.0",
+        "symfony/console": "^6.4 || ^7.0",
+        "symfony/dependency-injection": "^6.4 || ^7.0",
+        "symfony/event-dispatcher-contracts": "^3.0",
+        "symfony/framework-bundle": "^6.4 || ^7.0",
+        "symfony/http-kernel": "^6.4 || ^7.0",
+        "symfony/validator": "^6.4 || ^7.0"
     },
     "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.50",
+        "infection/infection": "^0.27",
+        "phpstan/phpstan": "^1.11",
+        "phpstan/phpstan-phpunit": "^1.3",
         "phpunit/phpunit": "^10.0",
+        "maglnet/composer-require-checker": "^4.5",
+        "phpro/grumphp": "^2.5",
         "symfony/phpunit-bridge": "^6.4 || ^7.0",
         "symfony/yaml": "^6.4 || ^7.0"
     },
@@ -33,7 +43,29 @@
         }
     },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpro/grumphp": true,
+            "infection/extension-installer": true
+        }
     },
-    "minimum-stability": "stable"
+    "minimum-stability": "stable",
+    "scripts": {
+        "test":       "phpunit",
+        "test:unit":  "phpunit --testsuite=Unit",
+        "test:integration": "phpunit --testsuite=Integration",
+        "stan":       "phpstan analyse",
+        "cs:check":   "php-cs-fixer fix --dry-run --diff",
+        "cs:fix":     "php-cs-fixer fix",
+        "mutation":   "infection --threads=4",
+        "qa":         ["@cs:check", "@stan", "@test"]
+    },
+    "scripts-descriptions": {
+        "test":       "Lancer toutes les suites de tests",
+        "stan":       "Analyse statique PHPStan",
+        "cs:check":   "Vérifier le formatage (sans modification)",
+        "cs:fix":     "Corriger le formatage",
+        "mutation":   "Tests de mutation avec Infection",
+        "qa":         "Vérification qualité complète (cs + stan + tests)"
+    }
 }

@@ -36,10 +36,18 @@ services:
             - { name: doctrine.event_listener, event: onFlush }
             - { name: doctrine.event_listener, event: preRemove }
 
-    # ─── Validateur de la contrainte #[GhostableField] ──────────────
+    # ─── Validateur de la contrainte #[RequiredOnRoot] ───────────────
+    EricGansa\GhostTreesBundle\Validator\RequiredOnRootValidator:
+        tags:
+            - { name: validator.constraint_validator }
+
+    # ─── Validateur (déprécié) de la contrainte #[GhostableField] ───
     EricGansa\GhostTreesBundle\Validator\GhostableFieldValidator:
         tags:
             - { name: validator.constraint_validator }
+
+    # ─── Handler : orchestration transactionnelle ───────────────────
+    EricGansa\GhostTreesBundle\Handler\IncarnateGhostHandler: ~
 
     # ─── Commandes CLI ──────────────────────────────────────────────
     EricGansa\GhostTreesBundle\Command\DebugGhostsCommand:

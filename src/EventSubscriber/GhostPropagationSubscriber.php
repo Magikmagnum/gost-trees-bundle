@@ -11,6 +11,8 @@ use Doctrine\ORM\Event\PreRemoveEventArgs;
 use Doctrine\ORM\Events;
 use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
 use EricGansa\GhostTreesBundle\Contract\GhostIncarnatorInterface;
+use EricGansa\GhostTreesBundle\Event\GhostAffiliatedEvent;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Subscriber Doctrine assurant la cohérence des arbres fantômes en base.
@@ -40,11 +42,13 @@ final class GhostPropagationSubscriber
 {
     public function __construct(
         private readonly GhostIncarnatorInterface $incarnator,
+        private readonly EventDispatcherInterface $eventDispatcher,
         private readonly bool $autoPropagateCollections,
         private readonly string $onRootDelete,
     ) {
     }
 
+    /** @return list<string> */
     public function getSubscribedEvents(): array
     {
         return [
@@ -69,6 +73,7 @@ final class GhostPropagationSubscriber
         foreach ($uow->getScheduledCollectionUpdates() as $collection) {
             /** @var Collection $collection */
             $owner = $collection->getOwner();
+
             if (!$owner instanceof GhostableInterface) {
                 continue;
             }
@@ -81,18 +86,20 @@ final class GhostPropagationSubscriber
             }
 
             $children = $this->getChildrenOf($owner, $em);
+
             if (empty($children)) {
                 continue;
             }
 
             $insertedItems = $collection->getInsertDiff();
+
             foreach ($insertedItems as $insertedItem) {
                 if (!$insertedItem instanceof GhostableInterface) {
                     continue;
                 }
 
                 foreach ($children as $child) {
-                    $ghost = $this->createGhostOf($insertedItem);
+                    $ghost = $this->spawnGhostFor($insertedItem);
                     $em->persist($ghost);
 
                     // Recalcul nécessaire pour que Doctrine prenne en compte
@@ -119,6 +126,7 @@ final class GhostPropagationSubscriber
         // Doctrine 2.x : PreRemoveEventArgs::getEntity()
         /** @var object $entity */
         $entity = method_exists($args, 'getObject') ? $args->getObject() : $args->getEntity(); // @phpstan-ignore-line
+
         if (!$entity instanceof GhostableInterface) {
             return;
         }
@@ -131,6 +139,7 @@ final class GhostPropagationSubscriber
 
         $em = $args->getObjectManager();
         $children = $this->getChildrenOf($entity, $em);
+
         foreach ($children as $child) {
             $this->incarnator->incarnate($child);
         }
@@ -153,31 +162,63 @@ final class GhostPropagationSubscriber
         // n'importe quel mapping qui respecte la convention "parent".
         try {
             $children = $repository->findBy(['parent' => $parent]);
-        } catch (\Throwable) {
-            // Si la propriété "parent" n'est pas mappée Doctrine sur la classe,
-            // on ne peut pas propager. C'est un usage non-Doctrine ou un
-            // mapping non standard : pas une erreur, juste un no-op.
+        } catch (\Exception $e) {
+            // Seul cas attendu : la propriété "parent" n'est pas mappée Doctrine
+            // (entité hors-convention ou usage non-Doctrine). Dans ce cas, on
+            // ne peut pas propager — c'est un no-op silencieux.
+            //
+            // Toute autre exception (connexion BDD perdue, timeout, erreur I/O)
+            // doit remonter pour ne pas masquer une panne réelle.
+            if (!$this->isMappingException($e)) {
+                throw $e;
+            }
+
             return [];
         }
 
-        return array_values(array_filter(
-            $children,
-            static fn ($child) => $child instanceof GhostableInterface
-        ));
+        // findBy() sur un repository GhostableInterface retourne GhostableInterface[].
+        /* @var list<GhostableInterface> $children */
+        return $children;
     }
 
     /**
-     * Crée un fantôme vierge rattaché à une entité parente donnée.
+     * Détermine si l'exception est due à un mapping Doctrine absent ou invalide.
      *
-     * Convention : la classe est instanciable sans arguments. Les setters
-     * ne sont pas appelés, l'entité est laissée dans son état par défaut
-     * (toutes valeurs locales à null = transparence totale).
+     * Doctrine 2.x lève \Doctrine\ORM\Mapping\MappingException.
+     * Doctrine 3.x lève des exceptions sous \Doctrine\ORM\Exception\ (base : ORMException).
+     * La détection via class_exists + instanceof permet une compatibilité cross-version
+     * sans provoquer d'erreur "class not found" dans un bloc catch.
      */
-    private function createGhostOf(GhostableInterface $parent): GhostableInterface
+    private function isMappingException(\Exception $e): bool
     {
-        $class = $parent::class;
-        $ghost = new $class();
-        $ghost->setParent($parent);
+        // Doctrine 2.x
+        if ($e instanceof \Doctrine\ORM\Mapping\MappingException) {
+            return true;
+        }
+
+        // Doctrine 3.x
+        if (class_exists(\Doctrine\ORM\Exception\ORMException::class)
+            && $e instanceof \Doctrine\ORM\Exception\ORMException) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Crée un fantôme vierge rattaché à une entité parente donnée,
+     * puis dispatche GhostAffiliatedEvent pour permettre aux listeners
+     * d'orchestrer des traitements complémentaires (cache, notification, etc.).
+     *
+     * Délègue à la fabrique statique GhostableInterface::createGhostOf(),
+     * implémentée par défaut dans GhostNodeTrait (new static() + setParent).
+     * Les entités dont le constructeur requiert des arguments DOIVENT surcharger
+     * createGhostOf() pour fournir leur propre logique d'instanciation.
+     */
+    private function spawnGhostFor(GhostableInterface $parent): GhostableInterface
+    {
+        $ghost = $parent::createGhostOf($parent);
+        $this->eventDispatcher->dispatch(new GhostAffiliatedEvent($ghost, $parent));
 
         return $ghost;
     }

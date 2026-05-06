@@ -1,0 +1,161 @@
+---
+# Pipeline CI/CD — Ghost Trees Bundle
+# ─────────────────────────────────────────────────────────────────────────────
+# Stages :
+#   1. install  : installation des dépendances
+#   2. quality  : format, analyse statique (fail-fast)
+#   3. test     : tests unitaires + intégration
+#   4. mutation : infection (optionnel, sur MR uniquement)
+#
+# Variables configurables dans les paramètres GitLab CI :
+#   PHP_VERSION   : version PHP Docker (défaut 8.2)
+#   COMPOSER_AUTH : token Packagist si repo privé
+
+variables:
+    PHP_VERSION: "8.2"
+    COMPOSER_CACHE_DIR: "$CI_PROJECT_DIR/.composer-cache"
+    XDEBUG_MODE: "off"   # Désactivé par défaut pour la vitesse ; activé pour coverage
+
+default:
+    image: "php:${PHP_VERSION}-cli"
+    before_script:
+        # Installer les extensions PHP nécessaires
+        - apt-get update -qq && apt-get install -qq -y git unzip libzip-dev
+        - docker-php-ext-install zip
+        # Installer Composer
+        - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+        # Installer les dépendances du projet
+        - composer install --no-interaction --no-progress --prefer-dist
+    cache:
+        key: "composer-${PHP_VERSION}-${CI_COMMIT_REF_SLUG}"
+        paths:
+            - .composer-cache/
+            - vendor/
+
+stages:
+    - install
+    - quality
+    - test
+    - mutation
+
+# ── Stage : install ──────────────────────────────────────────────────────────
+composer:install:
+    stage: install
+    script:
+        - composer validate --strict
+        - composer install --no-interaction --no-progress
+    artifacts:
+        paths:
+            - vendor/
+        expire_in: 1 hour
+
+# ── Stage : quality ──────────────────────────────────────────────────────────
+
+# 1. Audit sécurité (CVE dans les dépendances)
+security:audit:
+    stage: quality
+    needs: [composer:install]
+    script:
+        - composer audit --no-interaction
+    allow_failure: false
+
+# 2. Vérification du format (PHP CS Fixer en mode dry-run)
+quality:phpcsfixer:
+    stage: quality
+    needs: [composer:install]
+    script:
+        - vendor/bin/php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.php
+    allow_failure: false
+
+# 3. Analyse statique PHPStan
+quality:phpstan:
+    stage: quality
+    needs: [composer:install]
+    script:
+        - vendor/bin/phpstan analyse --configuration=phpstan.neon --memory-limit=256M
+    allow_failure: false
+
+# ── Stage : test ─────────────────────────────────────────────────────────────
+
+# Tests unitaires
+test:unit:
+    stage: test
+    needs: [composer:install]
+    variables:
+        XDEBUG_MODE: "coverage"
+    before_script:
+        - !reference [default, before_script]
+        - pecl install xdebug && docker-php-ext-enable xdebug
+    script:
+        - vendor/bin/phpunit --testsuite=Unit --coverage-clover=coverage/clover-unit.xml
+    coverage: '/^\s*Lines:\s*\d+.\d+\%/'
+    artifacts:
+        reports:
+            junit: coverage/junit-unit.xml
+            coverage_report:
+                coverage_format: cobertura
+                path: coverage/cobertura-unit.xml
+        paths:
+            - coverage/clover-unit.xml
+        expire_in: 1 week
+
+# Tests d'intégration
+test:integration:
+    stage: test
+    needs: [composer:install]
+    script:
+        - vendor/bin/phpunit --testsuite=Integration
+    artifacts:
+        reports:
+            junit: coverage/junit-integration.xml
+        expire_in: 1 week
+
+# ── Stage : mutation (optionnel, sur MR uniquement) ───────────────────────────
+
+mutation:infection:
+    stage: mutation
+    needs: [test:unit]
+    rules:
+        # Lancer uniquement sur les Merge Requests pour économiser le temps de pipeline.
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+          when: on_success
+        # Ou manuellement.
+        - when: manual
+          allow_failure: true
+    variables:
+        XDEBUG_MODE: "coverage"
+    before_script:
+        - !reference [default, before_script]
+        - pecl install xdebug && docker-php-ext-enable xdebug
+    script:
+        - vendor/bin/infection
+            --configuration=infection.json5
+            --threads=$(nproc)
+            --min-msi=70
+            --min-covered-msi=85
+            --coverage=coverage
+    artifacts:
+        paths:
+            - coverage/infection.log
+            - coverage/infection.html
+        expire_in: 1 week
+    allow_failure: true   # Ne bloque pas le pipeline principal
+
+# ── Stage : test — matrice PHP multi-version (optionnel) ─────────────────────
+
+.test_matrix: &test_matrix
+    stage: test
+    needs: []
+    script:
+        - composer install --no-interaction --no-progress
+        - vendor/bin/phpunit --testsuite=Unit
+    rules:
+        - if: '$CI_COMMIT_BRANCH == "main"'
+
+test:php82:
+    <<: *test_matrix
+    image: "php:8.2-cli"
+
+test:php83:
+    <<: *test_matrix
+    image: "php:8.3-cli"

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace EricGansa\GhostTreesBundle\Tests\Fixtures\Entity;
 
-use EricGansa\GhostTreesBundle\Attribute\Ghostable;
-use EricGansa\GhostTreesBundle\Attribute\GhostableField;
+use EricGansa\GhostTreesBundle\Attribute\GhostField;
+use EricGansa\GhostTreesBundle\Attribute\RequiredOnRoot;
 use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
 use EricGansa\GhostTreesBundle\Trait\GhostNodeTrait;
 
@@ -22,15 +22,15 @@ final class FakeTrajet implements GhostableInterface
 
     private ?int $id = null;
 
-    #[Ghostable]
-    #[GhostableField(required: true)]
+    #[GhostField]
+    #[RequiredOnRoot]
     private ?string $lieuDepart = null;
 
-    #[Ghostable]
-    #[GhostableField(required: true)]
+    #[GhostField]
+    #[RequiredOnRoot]
     private ?string $lieuArrivee = null;
 
-    #[Ghostable]
+    #[GhostField]
     private ?string $moyenTransport = null;
 
     public function getId(): ?int
@@ -41,6 +41,7 @@ final class FakeTrajet implements GhostableInterface
     public function setId(?int $id): self
     {
         $this->id = $id;
+
         return $this;
     }
 
@@ -52,6 +53,7 @@ final class FakeTrajet implements GhostableInterface
     public function setLieuDepart(?string $value): self
     {
         $this->lieuDepart = $value;
+
         return $this;
     }
 
@@ -63,6 +65,7 @@ final class FakeTrajet implements GhostableInterface
     public function setLieuArrivee(?string $value): self
     {
         $this->lieuArrivee = $value;
+
         return $this;
     }
 
@@ -74,6 +77,7 @@ final class FakeTrajet implements GhostableInterface
     public function setMoyenTransport(?string $value): self
     {
         $this->moyenTransport = $value;
+
         return $this;
     }
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace EricGansa\GhostTreesBundle\Metadata;
 
-use EricGansa\GhostTreesBundle\Attribute\Ghostable;
+use EricGansa\GhostTreesBundle\Attribute\GhostField;
 use EricGansa\GhostTreesBundle\Contract\GhostableInterface;
 
 /**
@@ -27,51 +27,58 @@ final class GhostMetadata
     /**
      * Retourne les métadonnées des propriétés fantomisables d'une classe.
      *
+     * @param class-string $class
+     *
      * @return list<GhostablePropertyMetadata>
      */
-    public function getProperties(string|GhostableInterface $classOrEntity): array
+    public function getProperties(string $class): array
     {
-        $class = is_object($classOrEntity) ? $classOrEntity::class : $classOrEntity;
-
         if (isset($this->cache[$class])) {
             return $this->cache[$class];
         }
 
         $properties = [];
-        $reflection = new \ReflectionClass($class);
+        $seen = [];
+        $current = new \ReflectionClass($class);
 
         // Remonter aussi les classes parentes pour les propriétés héritées.
-        $current = $reflection;
-        $seen = [];
-        while ($current !== false) {
+        do {
             foreach ($current->getProperties() as $property) {
                 if (isset($seen[$property->getName()])) {
                     continue;
                 }
                 $seen[$property->getName()] = true;
 
-                $attributes = $property->getAttributes(Ghostable::class);
+                // GhostField est la classe de base ; Ghostable (alias déprécié) en hérite.
+                $attributes = $property->getAttributes(GhostField::class, \ReflectionAttribute::IS_INSTANCEOF);
+
                 if (empty($attributes)) {
                     continue;
                 }
 
-                /** @var Ghostable $ghostableAttr */
-                $ghostableAttr = $attributes[0]->newInstance();
-
-                // setAccessible(true) est un no-op depuis PHP 8.1 :
-                // toutes les propriétés sont accessibles via Reflection sans
-                // appel explicite. Suppression de l'appel superflu.
+                /** @var GhostField $ghostFieldAttr */
+                $ghostFieldAttr = $attributes[0]->newInstance();
 
                 $properties[] = new GhostablePropertyMetadata(
                     name: $property->getName(),
                     reflectionProperty: $property,
-                    getter: $ghostableAttr->getter ?? 'get' . ucfirst($property->getName()),
+                    getter: $ghostFieldAttr->getter ?? 'get' . ucfirst($property->getName()),
                 );
             }
             $current = $current->getParentClass();
-        }
+        } while ($current instanceof \ReflectionClass);
 
         return $this->cache[$class] = $properties;
+    }
+
+    /**
+     * Raccourci pour les appelants qui disposent d'une instance plutôt que d'un FQCN.
+     *
+     * @return list<GhostablePropertyMetadata>
+     */
+    public function getPropertiesFor(GhostableInterface $entity): array
+    {
+        return $this->getProperties($entity::class);
     }
 
     /**

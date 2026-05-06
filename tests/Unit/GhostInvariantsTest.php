@@ -37,7 +37,7 @@ final class GhostInvariantsTest extends TestCase
 
     // ─── Résolution ───────────────────────────────────────────────────
 
-    public function testInvariant_GhostReadsFromParentWhenNotMaterialized(): void
+    public function testInvariantGhostReadsFromParentWhenNotMaterialized(): void
     {
         $racine = (new FakeTrajet())->setLieuDepart('Paris');
         $fantome = (new FakeTrajet())->setParent($racine);
@@ -45,7 +45,7 @@ final class GhostInvariantsTest extends TestCase
         $this->assertSame('Paris', $fantome->getLieuDepart());
     }
 
-    public function testInvariant_MaterializedValueShadowsParent(): void
+    public function testInvariantMaterializedValueShadowsParent(): void
     {
         $racine = (new FakeTrajet())->setLieuDepart('Paris');
         $fantome = (new FakeTrajet())->setParent($racine)->setLieuDepart('Lyon');
@@ -53,7 +53,7 @@ final class GhostInvariantsTest extends TestCase
         $this->assertSame('Lyon', $fantome->getLieuDepart());
     }
 
-    public function testInvariant_DematerializationRestoresTransparency(): void
+    public function testInvariantDematerializationRestoresTransparency(): void
     {
         $racine = (new FakeTrajet())->setLieuDepart('Paris');
         $fantome = (new FakeTrajet())->setParent($racine)->setLieuDepart('Lyon');
@@ -63,7 +63,7 @@ final class GhostInvariantsTest extends TestCase
         $this->assertSame('Paris', $fantome->getLieuDepart());
     }
 
-    public function testInvariant_WriteIsolation(): void
+    public function testInvariantWriteIsolation(): void
     {
         $racine = (new FakeTrajet())->setLieuDepart('Paris');
         $fantome = (new FakeTrajet())->setParent($racine);
@@ -73,7 +73,7 @@ final class GhostInvariantsTest extends TestCase
         $this->assertSame('Paris', $racine->getLieuDepart());
     }
 
-    public function testInvariant_PartialMaterializationIsGranular(): void
+    public function testInvariantPartialMaterializationIsGranular(): void
     {
         $racine = (new FakeTrajet())
             ->setLieuDepart('Paris')
@@ -86,7 +86,7 @@ final class GhostInvariantsTest extends TestCase
         $this->assertSame('TGV', $fantome->getMoyenTransport());
     }
 
-    public function testInvariant_ParentChangePropagatesToTransparentGhosts(): void
+    public function testInvariantParentChangePropagatesToTransparentGhosts(): void
     {
         $racine = (new FakeTrajet())->setLieuDepart('Paris');
         $fantome = (new FakeTrajet())->setParent($racine);
@@ -98,14 +98,14 @@ final class GhostInvariantsTest extends TestCase
 
     // ─── Inspector ────────────────────────────────────────────────────
 
-    public function testInspector_IsMaterialized_ReturnsFalseForRoots(): void
+    public function testInspectorIsMaterializedReturnsFalseForRoots(): void
     {
         $racine = (new FakeTrajet())->setLieuDepart('Paris');
 
         $this->assertFalse($this->inspector->isMaterialized($racine));
     }
 
-    public function testInspector_IsMaterialized_ReturnsFalseForTransparentGhost(): void
+    public function testInspectorIsMaterializedReturnsFalseForTransparentGhost(): void
     {
         $racine = (new FakeTrajet())->setLieuDepart('Paris');
         $fantome = (new FakeTrajet())->setParent($racine);
@@ -113,7 +113,7 @@ final class GhostInvariantsTest extends TestCase
         $this->assertFalse($this->inspector->isMaterialized($fantome));
     }
 
-    public function testInspector_IsMaterialized_ReturnsTrueForDivergedGhost(): void
+    public function testInspectorIsMaterializedReturnsTrueForDivergedGhost(): void
     {
         $racine = (new FakeTrajet())->setLieuDepart('Paris');
         $fantome = (new FakeTrajet())->setParent($racine)->setLieuDepart('Lyon');
@@ -121,7 +121,7 @@ final class GhostInvariantsTest extends TestCase
         $this->assertTrue($this->inspector->isMaterialized($fantome));
     }
 
-    public function testInspector_DebugResolution_ReportsLocalAndInheritedSources(): void
+    public function testInspectorDebugResolutionReportsLocalAndInheritedSources(): void
     {
         $racine = (new FakeTrajet())->setLieuDepart('Paris')->setLieuArrivee('Lyon');
         $fantome = (new FakeTrajet())->setParent($racine)->setLieuArrivee('Marseille');
@@ -136,7 +136,7 @@ final class GhostInvariantsTest extends TestCase
 
     // ─── Incarnator ───────────────────────────────────────────────────
 
-    public function testIncarnator_MaterializesAllInheritedValuesAndDetaches(): void
+    public function testIncarnatorMaterializesAllInheritedValuesAndDetaches(): void
     {
         $racine = (new FakeTrajet())
             ->setLieuDepart('Paris')
@@ -152,7 +152,7 @@ final class GhostInvariantsTest extends TestCase
         $this->assertSame('TGV', $fantome->getMoyenTransport());
     }
 
-    public function testIncarnator_NoOpOnRoot(): void
+    public function testIncarnatorNoOpOnRoot(): void
     {
         $racine = (new FakeTrajet())->setLieuDepart('Paris');
 
@@ -162,15 +162,15 @@ final class GhostInvariantsTest extends TestCase
         $this->assertSame('Paris', $racine->getLieuDepart());
     }
 
-    public function testIncarnator_DispatchesEvent(): void
+    public function testIncarnatorDispatchesEvent(): void
     {
         $dispatched = [];
         $dispatcher = new EventDispatcher();
         $dispatcher->addListener(
             \EricGansa\GhostTreesBundle\Event\GhostIncarnatedEvent::class,
-            function ($event) use (&$dispatched) {
+            static function ($event) use (&$dispatched): void {
                 $dispatched[] = $event;
-            }
+            },
         );
 
         $incarnator = new GhostIncarnator($this->metadata, $dispatcher);
@@ -187,7 +187,7 @@ final class GhostInvariantsTest extends TestCase
 
     // ─── Resolver — validation structurelle ──────────────────────────
 
-    public function testResolver_AllowsNullParent(): void
+    public function testResolverAllowsNullParent(): void
     {
         $entity = new FakeTrajet();
         $this->expectNotToPerformAssertions();
@@ -195,7 +195,7 @@ final class GhostInvariantsTest extends TestCase
         $this->resolver->assertValidParent($entity, null);
     }
 
-    public function testResolver_RejectsSelfAsParent(): void
+    public function testResolverRejectsSelfAsParent(): void
     {
         $entity = new FakeTrajet();
 
@@ -203,7 +203,7 @@ final class GhostInvariantsTest extends TestCase
         $this->resolver->assertValidParent($entity, $entity);
     }
 
-    public function testResolver_RejectsDepthOverflow(): void
+    public function testResolverRejectsDepthOverflow(): void
     {
         // max_depth=1 : grandparent → parent → child est interdit.
         $resolver = new GhostResolver(maxDepth: 1);
@@ -216,7 +216,7 @@ final class GhostInvariantsTest extends TestCase
         $resolver->assertValidParent($child, $parent);
     }
 
-    public function testResolver_AllowsConfiguredDepth(): void
+    public function testResolverAllowsConfiguredDepth(): void
     {
         $resolver = new GhostResolver(maxDepth: 2);
 
@@ -228,7 +228,7 @@ final class GhostInvariantsTest extends TestCase
         $resolver->assertValidParent($child, $parent);
     }
 
-    public function testResolver_RejectsCycle(): void
+    public function testResolverRejectsCycle(): void
     {
         $a = new FakeTrajet();
         $b = (new FakeTrajet())->setParent($a);
@@ -259,7 +259,7 @@ final class GhostInvariantsTest extends TestCase
     /**
      * Correction #2 — setParent() doit rejeter l'auto-référence directe.
      */
-    public function testTrait_SetParent_RejectsSelfReference(): void
+    public function testTraitSetParentRejectsSelfReference(): void
     {
         $entity = new FakeTrajet();
 
@@ -271,7 +271,7 @@ final class GhostInvariantsTest extends TestCase
      * Correction #4 — resolveFromAncestors() doit lever GhostCycleException
      * sur une chaîne corrompue en base (cycle A→B→A simulé par réflexion).
      */
-    public function testIncarnator_ThrowsCycleExceptionOnCorruptChain(): void
+    public function testIncarnatorThrowsCycleExceptionOnCorruptChain(): void
     {
         $a = new FakeTrajet(); // lieuDepart = null (doit remonter)
         $b = new FakeTrajet(); // lieuDepart = null (aucune valeur à propager)
@@ -289,7 +289,7 @@ final class GhostInvariantsTest extends TestCase
      * Correction #5 — debugResolution() ne doit pas boucler indéfiniment
      * sur des données corrompues ; il doit retourner source='cycle_detected'.
      */
-    public function testDebugResolution_HandlesCycleInCorruptData(): void
+    public function testDebugResolutionHandlesCycleInCorruptData(): void
     {
         $a = new FakeTrajet();
         $b = new FakeTrajet();
@@ -302,18 +302,120 @@ final class GhostInvariantsTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertNotEmpty($result);
+
         foreach ($result as $propertyName => $info) {
             $this->assertSame(
                 'cycle_detected',
                 $info['source'],
-                sprintf('La propriété "%s" devrait signaler un cycle.', $propertyName)
+                \sprintf('La propriété "%s" devrait signaler un cycle.', $propertyName),
             );
         }
     }
 
+    // ─── Trait — incarnate() ──────────────────────────────────────────
+
+    public function testTraitIncarnateMaterializesAndDetaches(): void
+    {
+        $racine = (new FakeTrajet())
+            ->setLieuDepart('Paris')
+            ->setLieuArrivee('Lyon')
+            ->setMoyenTransport('TGV');
+        $fantome = (new FakeTrajet())->setParent($racine)->setLieuArrivee('Marseille');
+
+        $fantome->incarnate();
+
+        $this->assertNull($fantome->getParent(), 'incarnate() doit couper le lien parent.');
+        $this->assertSame('Paris', $fantome->getLieuDepart(), 'valeur héritée matérialisée.');
+        $this->assertSame('Marseille', $fantome->getLieuArrivee(), 'valeur locale conservée.');
+        $this->assertSame('TGV', $fantome->getMoyenTransport(), 'valeur héritée matérialisée.');
+    }
+
+    public function testTraitIncarnateNoOpOnRoot(): void
+    {
+        $racine = (new FakeTrajet())->setLieuDepart('Paris');
+
+        $racine->incarnate();
+
+        $this->assertNull($racine->getParent());
+        $this->assertSame('Paris', $racine->getLieuDepart());
+    }
+
+    public function testTraitIncarnateReturnsFluent(): void
+    {
+        $fantome = (new FakeTrajet())->setParent(new FakeTrajet());
+
+        $this->assertSame($fantome, $fantome->incarnate());
+    }
+
+    // ─── Trait — reset() ──────────────────────────────────────────────
+
+    public function testTraitResetClearsLocalValuesAndKeepsParent(): void
+    {
+        $racine = (new FakeTrajet())->setLieuDepart('Paris')->setLieuArrivee('Lyon');
+        $fantome = (new FakeTrajet())->setParent($racine)
+            ->setLieuDepart('Bordeaux')
+            ->setLieuArrivee('Marseille');
+
+        $fantome->reset();
+
+        // Lien parent conservé.
+        $this->assertSame($racine, $fantome->getParent());
+        // Résolution redevient transparente.
+        $this->assertSame('Paris', $fantome->getLieuDepart());
+        $this->assertSame('Lyon', $fantome->getLieuArrivee());
+    }
+
+    public function testTraitResetOnRootLeavesSemanticsIntact(): void
+    {
+        $racine = (new FakeTrajet())->setLieuDepart('Paris');
+
+        $racine->reset();
+
+        // Toujours une racine (pas de parent).
+        $this->assertNull($racine->getParent());
+        // Mais sans valeur locale maintenant.
+        $this->assertNull($racine->getLieuDepart());
+    }
+
+    public function testTraitResetReturnsFluent(): void
+    {
+        $entity = new FakeTrajet();
+
+        $this->assertSame($entity, $entity->reset());
+    }
+
+    public function testTraitIncarnateAfterResetRestoresIndependence(): void
+    {
+        $racine = (new FakeTrajet())->setLieuDepart('Paris')->setLieuArrivee('Lyon');
+        $fantome = (new FakeTrajet())->setParent($racine)->setLieuDepart('Bordeaux');
+
+        // Annule les surcharges, repasse en transparent.
+        $fantome->reset();
+        $this->assertSame('Paris', $fantome->getLieuDepart());
+
+        // Puis incarne → devient racine autonome avec les valeurs du parent.
+        $fantome->incarnate();
+        $this->assertNull($fantome->getParent());
+        $this->assertSame('Paris', $fantome->getLieuDepart());
+        $this->assertSame('Lyon', $fantome->getLieuArrivee());
+    }
+
+    // ─── Trait — createGhostOf() ──────────────────────────────────────
+
+    public function testTraitCreateGhostOfProducesTransparentGhost(): void
+    {
+        $racine = (new FakeTrajet())->setLieuDepart('Paris');
+
+        $ghost = FakeTrajet::createGhostOf($racine);
+
+        $this->assertSame($racine, $ghost->getParent());
+        $this->assertTrue($ghost->isGhost());
+        $this->assertSame('Paris', $ghost->getLieuDepart(), 'Le fantôme doit lire depuis le parent.');
+    }
+
     // ─── Métadonnées ──────────────────────────────────────────────────
 
-    public function testMetadata_DiscoversGhostableProperties(): void
+    public function testMetadataDiscoversGhostableProperties(): void
     {
         $properties = $this->metadata->getProperties(FakeTrajet::class);
         $names = array_map(static fn ($p) => $p->name, $properties);
@@ -323,7 +425,7 @@ final class GhostInvariantsTest extends TestCase
         $this->assertContains('moyenTransport', $names);
     }
 
-    public function testMetadata_CachesByClass(): void
+    public function testMetadataCachesByClass(): void
     {
         $first = $this->metadata->getProperties(FakeTrajet::class);
         $second = $this->metadata->getProperties(FakeTrajet::class);
