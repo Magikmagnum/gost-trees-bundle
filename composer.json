@@ -12,12 +12,12 @@
     "require": {
         "php": ">=8.2",
         "doctrine/orm": "^2.17 || ^3.0",
-        "symfony/config": "^6.4.29 || ^7.3.7",
-        "symfony/console": "^6.4.29 || ^7.3.7",
-        "symfony/dependency-injection": "^6.4.29 || ^7.3.7",
+        "symfony/config": "^6.4.29 || ^7.3.6",
+        "symfony/console": "^6.4.29 || ^7.3.6",
+        "symfony/dependency-injection": "^6.4.29 || ^7.3.6",
         "symfony/event-dispatcher-contracts": "^3.0",
-        "symfony/http-kernel": "^6.4.29 || ^7.3.7",
-        "symfony/validator": "^6.4.29 || ^7.3.7"
+        "symfony/http-kernel": "^6.4.29 || ^7.3.6",
+        "symfony/validator": "^6.4.29 || ^7.3.6"
     },
     "suggest": {
         "doctrine/doctrine-bundle": "Required in the consuming application to wire Doctrine listeners and EntityManager."
@@ -31,7 +31,7 @@
         "maglnet/composer-require-checker": "^4.5",
         "phpro/grumphp": "^2.5",
         "symfony/phpunit-bridge": "^8.0.8",
-        "symfony/yaml": "^6.4.29 || ^7.3.7"
+        "symfony/yaml": "^6.4.29 || ^7.3.6"
     },
     "autoload": {
         "psr-4": {
