@@ -8,3 +8,4 @@
 *.swp
 .DS_Store
 .php-cs-fixer.cache
+/.claude/
